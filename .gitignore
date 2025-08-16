@@ -11,3 +11,4 @@ __pycache__/CEM.cpython-310.pyc
 __pycache__/GA.cpython-310.pyc
 __pycache__/PSO.cpython-310.pyc
 __pycache__/SA.cpython-310.pyc
+*.pyc
