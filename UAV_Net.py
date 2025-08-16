@@ -39,7 +39,7 @@ class UAV_Net:
         self.distance = distance
         self.ugv_factor = ugv_factor
         self.bounds = [(0, 1)] * self.N_stations * 2
-        self.cost_normalizer = 1 / (self.N_drones * (self.N_stations**self.N_stations))
+        self.cost = None
         print("UAV Network was successfully created.")
         return
 
@@ -109,6 +109,7 @@ class UAV_Net:
         cost = 0.0
         for i in range(len(self.D_ss)):
             cost += free_energy_Gibbs(self.D_ss[i], beta)
+        self.cost = cost
         if self.ugv_factor == 0.0:
             return cost
         else:
@@ -117,7 +118,7 @@ class UAV_Net:
             )
 
     def return_total_cost(self):
-        return self.cost_fun / self.cost_normalizer * self.scale
+        return self.cost * self.scale
 
     def return_direct_cost(self):
         return np.sum(
