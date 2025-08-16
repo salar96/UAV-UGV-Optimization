@@ -3,15 +3,20 @@ from collections import defaultdict
 from shapely.geometry import LineString, Polygon
 from heapq import heappop, heappush
 from utils import *
+
+
 # Utility for Euclidean distance
 def euclidean_distance(p1, p2):
-    return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+    return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+
 
 class Obstacle:
     def __init__(self, obstacle):
         self.polygon = Polygon(obstacle)
-        self.vertices = list(self.polygon.exterior.coords)[:-1]  # Exclude duplicate closing point
-    
+        self.vertices = list(self.polygon.exterior.coords)[
+            :-1
+        ]  # Exclude duplicate closing point
+
     def _build_graph(self, start, finish):
         nodes = [start, finish] + self.vertices
         edges = []
@@ -28,7 +33,7 @@ class Obstacle:
         for node1, node2, weight in edges:
             graph[node1].append((weight, node2))
             graph[node2].append((weight, node1))
-        
+
         return graph
 
     def _shortest_path(self, graph, source, target):
@@ -36,13 +41,13 @@ class Obstacle:
         visited = set()
         distances = {source: 0}
         predecessors = {source: None}  # To reconstruct the path
-        
+
         while pq:
             dist, current = heappop(pq)
             if current in visited:
                 continue
             visited.add(current)
-            
+
             if current == target:
                 # Reconstruct the path
                 path = []
@@ -50,7 +55,7 @@ class Obstacle:
                     path.append(current)
                     current = predecessors[current]
                 return path[::-1], dist
-            
+
             for weight, neighbor in graph[current]:
                 if neighbor not in visited:
                     new_dist = dist + weight
@@ -58,11 +63,10 @@ class Obstacle:
                         distances[neighbor] = new_dist
                         predecessors[neighbor] = current
                         heappush(pq, (new_dist, neighbor))
-        
-        return [], float('inf')
 
+        return [], float("inf")
 
-    def find_additional_length(self, points, Path_ = False):
+    def find_additional_length(self, points, Path_=False):
         start = tuple(points[0])
         finish = tuple(points[1])
         line = LineString([start, finish])
@@ -80,15 +84,14 @@ class Obstacle:
 
         # Remove start and finish points from the path
         path = path[1:-1]
-        
-      
-        additional_length = length - euclidean_distance(start,finish)
-        
+
+        additional_length = length - euclidean_distance(start, finish)
+
         if not Path_:
             return additional_length
         else:
             return path
 
-def add_block_dist(obstacle):
-  return lambda u,v:obstacle.find_additional_length([u,v])
 
+def add_block_dist(obstacle):
+    return lambda u, v: obstacle.find_additional_length([u, v])

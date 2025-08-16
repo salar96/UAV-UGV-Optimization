@@ -2,26 +2,39 @@ import numpy as np
 from typing import List, Tuple
 
 
-my_inf=1e6 # a large value used for penalty function
+my_inf = 1e6  # a large value used for penalty function
 
 
 def my_log(m):
-    return np.log(m, out=np.zeros_like(m), where=(m>0))
+    return np.log(m, out=np.zeros_like(m), where=(m > 0))
+
 
 def penalty(x):
-    x = np.clip(x , None, 2.0)
+    x = np.clip(x, None, 2.0)
     a = 10
     z0 = 200
     x_off = 0.05
-    y = a * np.log((np.log(np.exp(1/z0) + np.exp(z0*x - z0*x_off)))/(np.log(np.exp(1/z0) + np.exp(-z0))))
+    y = a * np.log(
+        (np.log(np.exp(1 / z0) + np.exp(z0 * x - z0 * x_off)))
+        / (np.log(np.exp(1 / z0) + np.exp(-z0)))
+    )
     return y
+
+
 # def penalty(x):
 #     mask = x<=0
 #     y = my_inf*(x**2)
 #     y[mask] = 0
 #     return y
 
-def create_block(type: str, center: Tuple[float, float], length: float, distortion: str = "none", seed: int = 42) -> List[Tuple[float, float]]:
+
+def create_block(
+    type: str,
+    center: Tuple[float, float],
+    length: float,
+    distortion: str = "none",
+    seed: int = 42,
+) -> List[Tuple[float, float]]:
     """
     Creates a 2D shape with specified type, center, and length.
     Adds distortion like skew or rotation if specified.
@@ -55,7 +68,7 @@ def create_block(type: str, center: Tuple[float, float], length: float, distorti
             (cx - half, cy - half),
             (cx + half, cy - half),
             (cx + half, cy + half),
-            (cx - half, cy + half)
+            (cx - half, cy + half),
         ]
 
     elif type == "triangle":
@@ -79,7 +92,7 @@ def create_block(type: str, center: Tuple[float, float], length: float, distorti
         vertices = [
             (
                 cx + (x - cx) * np.cos(angle) - (y - cy) * np.sin(angle),
-                cy + (x - cx) * np.sin(angle) + (y - cy) * np.cos(angle)
+                cy + (x - cx) * np.sin(angle) + (y - cy) * np.cos(angle),
             )
             for x, y in vertices
         ]
@@ -88,5 +101,3 @@ def create_block(type: str, center: Tuple[float, float], length: float, distorti
         raise ValueError(f"Unsupported distortion type: {distortion}")
 
     return vertices
-
-    
