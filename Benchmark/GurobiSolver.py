@@ -3,7 +3,55 @@ import numpy as np
 import time
 
 
-def SolveMIP(s_data, e_data, num_agents, num_nodes, T, dim, threshold, y_init=None, gap=0.05):
+def SolveMIP(
+    s_data, e_data, num_agents, num_nodes, T, dim, threshold, y_init=None, gap=0.05
+):
+    """
+    Solve a Mixed-Integer Programming (MIP) formulation of the UAV-UGV coordination problem.
+    This function creates and solves a Pyomo model for optimizing node locations and agent
+    trajectories to minimize average travel distance while respecting constraints on movement.
+    Parameters
+    ----------
+    s_data : np.ndarray or dict
+        Starting positions for each agent. If np.ndarray, shape should be (num_agents, 1, dim).
+        If dict, keys should be (a, d) tuples with agent index a and dimension d.
+    e_data : np.ndarray or dict
+        End positions for each agent. Same format as s_data.
+    num_agents : int
+        Number of agents.
+    num_nodes : int
+        Number of shared nodes to be placed.
+    T : int
+        Time horizon (maximum number of steps).
+    dim : int
+        Number of spatial dimensions (typically 2).
+    threshold : float
+        Maximum allowed distance for a single agent step.
+    y_init : np.ndarray, optional
+        Initial guess for node positions, shape (1, num_nodes, dim). Default is None.
+    gap : float, optional
+        MIP gap tolerance for the solver. Default is 0.05 (5%).
+    Returns
+    -------
+    best_y : np.ndarray
+        Optimal positions of the nodes, shape (num_nodes, dim).
+    best_eta : np.ndarray
+        Binary decision variables indicating agent positions at each timestep,
+        shape (num_agents, T, num_nodes + 1).
+    best_cost : float
+        The objective value (average distance traveled by agents).
+    elapsed_time : float
+        Time taken to solve the problem in seconds.
+    Notes
+    -----
+    The formulation uses:
+    - Binary variables (eta) to track which node each agent visits at each timestep
+    - Continuous variables (y) for the node positions
+    - Movement constraints ensuring agents don't exceed threshold distance per step
+    - Constraints preventing revisiting of nodes
+    - Symmetry-breaking constraints for better solver performance
+    The problem is solved using Gurobi with nonconvex quadratic constraints.
+    """
 
     # === Convert start & end to dicts ===
     if isinstance(s_data, np.ndarray):
@@ -26,8 +74,14 @@ def SolveMIP(s_data, e_data, num_agents, num_nodes, T, dim, threshold, y_init=No
 
     # === Initial node locations ===
     if y_init is not None:
-        assert y_init.shape == (1, num_nodes, dim), "y_init must have shape (1, num_nodes, dim)"
-        y_init_dict = {(j, d): float(y_init[0, j, d]) for j in range(num_nodes) for d in range(dim)}
+        assert y_init.shape == (
+            1,
+            num_nodes,
+            dim,
+        ), "y_init must have shape (1, num_nodes, dim)"
+        y_init_dict = {
+            (j, d): float(y_init[0, j, d]) for j in range(num_nodes) for d in range(dim)
+        }
     else:
         y_init_dict = {(j, d): 0.5 for j in range(num_nodes) for d in range(dim)}
 
@@ -35,7 +89,7 @@ def SolveMIP(s_data, e_data, num_agents, num_nodes, T, dim, threshold, y_init=No
     model = pyo.ConcreteModel()
     model.A = pyo.RangeSet(0, num_agents - 1)
     model.N = pyo.RangeSet(0, num_nodes - 1)  # real shared nodes
-    model.J = pyo.RangeSet(0, num_nodes)      # includes virtual end index = num_nodes
+    model.J = pyo.RangeSet(0, num_nodes)  # includes virtual end index = num_nodes
     model.T = pyo.RangeSet(1, T)
 
     # === Params for start and end locations ===
@@ -44,7 +98,8 @@ def SolveMIP(s_data, e_data, num_agents, num_nodes, T, dim, threshold, y_init=No
 
     # === Variables ===
     model.y = pyo.Var(
-        model.N, range(dim),
+        model.N,
+        range(dim),
         domain=pyo.Reals,
         bounds=(0.05, 0.95),
         initialize=y_init_dict,
@@ -60,26 +115,30 @@ def SolveMIP(s_data, e_data, num_agents, num_nodes, T, dim, threshold, y_init=No
     # One choice per timestep
     def one_choice(m, a, t):
         return sum(m.eta[a, t, j] for j in m.J) == 1
+
     model.one_choice = pyo.Constraint(model.A, model.T, rule=one_choice)
 
     # No revisit of real nodes
     model.no_revisit = pyo.Constraint(
-        model.A, model.N,
-        rule=lambda m, a, j: sum(m.eta[a, t, j] for t in m.T) <= 1
+        model.A, model.N, rule=lambda m, a, j: sum(m.eta[a, t, j] for t in m.T) <= 1
     )
 
     # End stickiness
     model.end_stickiness = pyo.ConstraintList()
     for a in range(num_agents):
         for t in range(1, T):
-            model.end_stickiness.add(model.eta[a, t, num_nodes] <= model.eta[a, t + 1, num_nodes])
+            model.end_stickiness.add(
+                model.eta[a, t, num_nodes] <= model.eta[a, t + 1, num_nodes]
+            )
 
     # Symmetry-breaking
     model.sym_idx = pyo.RangeSet(0, num_nodes - 2)
-    model.sym_x = pyo.Constraint(model.sym_idx, rule=lambda m, j: m.y[j, 0] <= m.y[j + 1, 0])
+    model.sym_x = pyo.Constraint(
+        model.sym_idx, rule=lambda m, j: m.y[j, 0] <= m.y[j + 1, 0]
+    )
     model.sym_lex = pyo.Constraint(
         model.sym_idx,
-        rule=lambda m, j: m.y[j, 1] <= m.y[j + 1, 1] + (m.y[j + 1, 0] - m.y[j, 0])
+        rule=lambda m, j: m.y[j, 1] <= m.y[j + 1, 1] + (m.y[j + 1, 0] - m.y[j, 0]),
     )
 
     # === Coordinate helper ===
@@ -94,21 +153,25 @@ def SolveMIP(s_data, e_data, num_agents, num_nodes, T, dim, threshold, y_init=No
         else:
             pos_tm1 = sum(m.eta[a, t - 1, j] * coord(m, a, j, d) for j in m.J)
         return m.xdiff[a, t, d] == pos_t - pos_tm1
+
     model.delta_def = pyo.Constraint(model.A, model.T, range(dim), rule=delta_def)
 
     # SOC: dist >= sqrt(x^2 + y^2)
     def soc_rule(m, a, t):
         return m.dist[a, t] ** 2 >= m.xdiff[a, t, 0] ** 2 + m.xdiff[a, t, 1] ** 2
+
     model.soc = pyo.Constraint(model.A, model.T, rule=soc_rule)
 
     # Threshold constraint: each step must be <= threshold
     def max_step_rule(m, a, t):
         return m.dist[a, t] <= threshold
+
     model.max_step = pyo.Constraint(model.A, model.T, rule=max_step_rule)
 
     # === Objective: minimize average distance ===
     def total_cost(m):
         return sum(m.dist[a, t] for a in m.A for t in m.T) / num_agents
+
     model.obj = pyo.Objective(rule=total_cost, sense=pyo.minimize)
 
     # === Solve ===
