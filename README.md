@@ -244,12 +244,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 If you use this code in your research, please cite:
 
 ```bibtex
-@misc{uav-ugv-optimization,
-  title={Our paper},
-  author={},
+@ARTICLE{11314119,
+  author={Basiri, Salar and Tiwari, Dhananjay and Hassani, Ghazal and Papachristos, Christos and Salapaka, Srinivasa},
+  journal={IEEE Access}, 
+  title={A Maximum Entropy Approach to Joint Obstacle-Aware Routing and Facility Location in UAV Networks Under Energy Constraints}, 
   year={2025},
-  url={https://github.com/salar96/UAV-UGV-Optimization}
-}
+  volume={13},
+  number={},
+  pages={216694-216704},
+  keywords={Autonomous aerial vehicles;Costs;Routing;Entropy;Batteries;Logistics;Metaheuristics;Land vehicles;Collision avoidance;Wireless communication;Facility location;maximum entropy principle;multi-objective planning;optimization;path planning;routing;uncrewed aerial vehicles (UAV)},
+  doi={10.1109/ACCESS.2025.3647827}}
+
 ```
 
 
